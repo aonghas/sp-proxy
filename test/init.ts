@@ -14,7 +14,7 @@ async function checkOrPromptForIntegrationConfigCreds (): Promise<void> {
       await new AuthConfig({ configPath: c.configPath }).getContext();
       logger.info(colors.grey(`Gotcha ${resolve(c.configPath)}`));
     } else {
-      logger.info(colors.yellow('CI configuration detected.'));
+      logger.info(colors.yellow(`CI configuration detected.`));
     }
   }
 
@@ -22,6 +22,4 @@ async function checkOrPromptForIntegrationConfigCreds (): Promise<void> {
 
 }
 
-if (process.argv.indexOf('--init') !== -1) {
-  checkOrPromptForIntegrationConfigCreds();
-}
+checkOrPromptForIntegrationConfigCreds();

@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const RestProxy = require('sp-rest-proxy');
 
 const settings = {

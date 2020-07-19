@@ -1,6 +1,6 @@
 export const enum LogLevel {
-  Verbose = 5,
-  Debug = 4,
+  Debug = 5,
+  Verbose = 4,
   Info = 3,
   Warning = 2,
   Error = 1,
@@ -11,35 +11,35 @@ export class Logger {
 
   constructor(public level: LogLevel | number = LogLevel.Info) { /**/ }
 
-  public debug(...args: unknown[]): void {
+  public debug(...args: any[]) {
     if (this.level >= LogLevel.Debug) {
       // tslint:disable-next-line:no-console
       console.log(...args);
     }
   }
 
-  public verbose(...args: unknown[]): void {
+  public verbose(...args: any[]) {
     if (this.level >= LogLevel.Verbose) {
       // tslint:disable-next-line:no-console
       console.log(...args);
     }
   }
 
-  public info(...args: unknown[]): void {
+  public info(...args: any[]) {
     if (this.level >= LogLevel.Info) {
       // tslint:disable-next-line:no-console
       console.log(...args);
     }
   }
 
-  public warning(...args: unknown[]): void {
+  public warning(...args: any[]) {
     if (this.level >= LogLevel.Warning) {
       // tslint:disable-next-line:no-console
       console.log(...args);
     }
   }
 
-  public error(...args: unknown[]): void {
+  public error(...args: any[]) {
     if (this.level >= LogLevel.Error) {
       // tslint:disable-next-line:no-console
       console.log(...args);

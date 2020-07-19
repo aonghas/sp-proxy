@@ -1,9 +1,6 @@
 import { trimMultiline } from './misc';
 
-export interface IPageContextInfo extends _spPageContextInfo {
-  __webAbsoluteUrl?: string;
-  __siteAbsoluteUrl?: string;
-}
+export interface IPageContextInfo extends _spPageContextInfo {}
 
 export const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
@@ -11,14 +8,17 @@ export const isLocalhost = Boolean(
   window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
 );
 
-export const loadPageContext = (proxyEndpoint?: string): Promise<Partial<IPageContextInfo>> => {
+export const loadPageContext = (proxyEndpoint?: string): Promise<IPageContextInfo> => {
   return new Promise((resolve) => {
     if (typeof _spPageContextInfo !== 'undefined') {
       return resolve(_spPageContextInfo);
     }
     if (isLocalhost) {
-      const apiEndpoint = proxyEndpoint || window.location.origin;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let apiEndpoint = proxyEndpoint || window.location.origin;
+      // if (port) {
+      //   const [ protocol, uri ] = apiEndpoint.split(':');
+      //   apiEndpoint = `${protocol}:${uri}:${port}`;
+      // }
       const getWebInfo = (): Promise<any> => {
         const restUrl = trimMultiline(`
           ${apiEndpoint}/_api/web?
@@ -34,7 +34,6 @@ export const loadPageContext = (proxyEndpoint?: string): Promise<Partial<IPageCo
           ]
         }).then((res) => res.json());
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const getSiteInfo = (): Promise<any> => {
         const restUrl = `${apiEndpoint}/_api/site?$select=ServerRelativeUrl,Url`;
         return fetch(restUrl, {
@@ -47,7 +46,8 @@ export const loadPageContext = (proxyEndpoint?: string): Promise<Partial<IPageCo
       };
       return Promise.all([ getWebInfo(), getSiteInfo() ])
         .then(([{ d: webInfo }, { d: siteInfo }]) => {
-          const _spPageContextInfoFake: Partial<IPageContextInfo> = {
+          const _spPageContextInfoFake: IPageContextInfo = {
+            ...{} as any,
             // Web info
             webTitle: webInfo.Title,
             webAbsoluteUrl: apiEndpoint + webInfo.ServerRelativeUrl,
@@ -67,8 +67,7 @@ export const loadPageContext = (proxyEndpoint?: string): Promise<Partial<IPageCo
             __webAbsoluteUrl: webInfo.Url,
             __siteAbsoluteUrl: siteInfo.Url,
           };
-          (window as unknown as { _spPageContextInfo: Partial<IPageContextInfo> })
-            ._spPageContextInfo = _spPageContextInfoFake;
+          (window as any)._spPageContextInfo = _spPageContextInfoFake;
           return resolve(_spPageContextInfoFake);
         });
     }

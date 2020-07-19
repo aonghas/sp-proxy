@@ -1,5 +1,6 @@
 node_modules/
 config/**/private.*
+config/**/proxy.*
 dist/
 debug.log
 npm-debug.*

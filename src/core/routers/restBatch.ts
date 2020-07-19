@@ -1,9 +1,6 @@
-import { Request, Response } from 'express';
-// import { Headers } from 'node-fetch';
+import { Request, Response, NextFunction } from 'express';
 
 import { BasicRouter } from '../BasicRouter';
-import { getHeaders } from '../../utils/headers';
-
 import { IProxyContext, IProxySettings } from '../interfaces';
 
 export class RestBatchRouter extends BasicRouter {
@@ -12,8 +9,8 @@ export class RestBatchRouter extends BasicRouter {
     super(context, settings);
   }
 
-  public router = (request: Request, response: Response): void => {
-    const endpointUrl = this.url.apiEndpoint(request);
+  public router = (request: Request, response: Response, _next?: NextFunction) => {
+    const endpointUrl = this.util.buildEndpointUrl(request);
     this.logger.info('\nPOST (batch): ' + endpointUrl);
     let reqBody = '';
     if (request.body) {
@@ -25,9 +22,9 @@ export class RestBatchRouter extends BasicRouter {
     }
   }
 
-  private processBatchRequest(body: string, req: Request, res: Response) {
-    const endpointUrl = this.url.apiEndpoint(req);
-    body = (req as unknown as { rawBody: string }).rawBody;
+  private processBatchRequest(body: any, req: Request, res: Response) {
+    const endpointUrl = this.util.buildEndpointUrl(req);
+    body = (req as any).rawBody;
     const { processBatchMultipartBody: transform } = this.settings;
     if (transform && typeof transform === 'function') {
       body = transform(body);
@@ -46,12 +43,42 @@ export class RestBatchRouter extends BasicRouter {
         return line;
       }).join('\n');
     }
+    // req.headers['Content-Length'] = reqBodyData.byteLength;
     this.logger.verbose('Request body:', body);
-    const headers = getHeaders(req.headers);
-    this.sp.fetch(endpointUrl, { method: 'POST', headers, body })
-      .then(this.handlers.isOK)
-      .then(this.handlers.response(res))
-      .catch(this.handlers.error(res));
+    this.spr = this.getHttpClient();
+    const agent = this.util.isUrlHttps(endpointUrl) ? this.settings.agent : undefined;
+    this.spr.requestDigest(endpointUrl.split('/_api')[0])
+      .then((digest) => {
+        let headers: any = {};
+        const ignoreHeaders = [
+          'host', 'referer', 'origin',
+          'if-none-match', 'connection', 'cache-control', 'user-agent',
+          'accept-encoding', 'x-requested-with', 'accept-language'
+        ];
+        Object.keys(req.headers).forEach((prop) => {
+          if (ignoreHeaders.indexOf(prop.toLowerCase()) === -1) {
+            if (prop.toLowerCase() === 'accept' && req.headers[prop] !== '*/*') {
+              headers['Accept'] = req.headers[prop];
+            } else if (prop.toLowerCase() === 'content-type') {
+              headers['Content-Type'] = req.headers[prop];
+            } else if (prop.toLowerCase() === 'x-requestdigest') {
+              // headers['X-RequestDigest'] = req.headers[prop]; // temporary commented
+            } else if (prop.toLowerCase() === 'content-length') {
+              // requestHeadersPass['Content-Length'] = req.headers[prop];
+            } else {
+              headers[prop] = req.headers[prop];
+            }
+          }
+        });
+        headers = {
+          ...headers,
+          'X-RequestDigest': headers['X-RequestDigest'] || digest
+        };
+        // this.logger.debug('\nHeaders:\n', JSON.stringify(requestHeadersPass, null, 2));
+        return this.spr.post(endpointUrl, { headers, body, agent, json: false });
+      })
+      .then((r) => this.transmitResponse(res, r))
+      .catch((err) => this.transmitError(res, err));
   }
 
 }

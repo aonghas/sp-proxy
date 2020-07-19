@@ -32,14 +32,13 @@ export class Server {
 
       this.socket = socket;
 
-      // tslint:disable-next-line: deprecation
       const bodyParserRaw = bodyParser.raw({
         type: '*/*',
         limit: this.proxy.rawBodyLimitSize,
         verify: (req, _res, buf, encoding) => {
           if (buf && buf.length) {
-            (req as unknown as { rawBody: string }).rawBody = buf.toString(encoding as BufferEncoding || 'utf8');
-            (req as unknown as { buffer: Buffer }).buffer = buf;
+            (req as any).rawBody = buf.toString(encoding || 'utf8');
+            (req as any).buffer = buf;
           }
         }
       });
@@ -54,7 +53,6 @@ export class Server {
       this.app.post('*/_api/[$]batch', bodyParserRaw, this.postTransmitter);
 
       // REST - POST requests (JSON)
-      // tslint:disable-next-line: deprecation
       this.app.post('*/_api/*', bodyParser.json({ limit: this.proxy.jsonPayloadLimitSize }), this.postTransmitter);
 
       //  CSOM/SOAP requests (XML)
@@ -63,7 +61,6 @@ export class Server {
       // Static router
       this.app.get('*', this.getTransmitter);
 
-      // tslint:disable-next-line: deprecation
       this.app.use(bodyParser.urlencoded({ extended: true }));
       this.app.use(cors());
 
@@ -89,7 +86,7 @@ export class Server {
       url: req.originalUrl,
       method: 'GET',
       headers: req.headers,
-      transaction
+      transaction: transaction
     };
     this.io.emit('REQUEST', request);
   }
@@ -129,8 +126,8 @@ export class Server {
         url: req.originalUrl,
         method: 'POST',
         headers: req.headers,
-        body,
-        transaction
+        body: body,
+        transaction: transaction
       };
       this.io.emit('REQUEST', request);
     });

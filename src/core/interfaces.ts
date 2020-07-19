@@ -2,10 +2,9 @@ import { IAuthOptions } from 'node-sp-auth';
 import { IAuthConfigSettings } from 'node-sp-auth-config';
 import { Router, Request } from 'express';
 import { Agent, Server as HttpsServer } from 'https';
-import { Server as HttpServer } from 'http';
+import { Server as HttpServer,IncomingMessage } from 'http';
 import { LogLevel } from '../utils/logger';
 import { BasicRouter } from './BasicRouter';
-import { Response } from 'node-fetch';
 
 export interface IProxySettings {
   hostname?: string;
@@ -16,7 +15,7 @@ export interface IProxySettings {
   staticRoot?: string;
   rawBodyLimitSize?: string;
   jsonPayloadLimitSize?: string;
-  metadata?: unknown;
+  metadata?: any;
   agent?: Agent;
   strictRelativeUrls?: boolean;
 
@@ -54,18 +53,18 @@ export interface IGatewayClientSettings {
   serverUrl: string;
 }
 
-export type IProxyCallback = (
-  server: HttpsServer | HttpServer,
-  context: IProxyContext,
-  settings: IProxySettings
-) => void;
+export interface IProxyCallback {
+  (
+    server: HttpsServer | HttpServer,
+    context: IProxyContext,
+    settings: IProxySettings
+  ): void;
+}
 
-export type IProxyErrorCallback = (error: Error) => void;
+export interface IProxyErrorCallback {
+  (error: Error): void;
+}
 
 export interface IProxyHooks {
-  responseMapper?: (
-    req: Request,
-    res: Response,
-    router?: BasicRouter
-  ) => Promise<Response> | Response;
+  responseMapper?: (req: Request, res: IncomingMessage, router?: BasicRouter) => Promise<IncomingMessage> | IncomingMessage;
 }

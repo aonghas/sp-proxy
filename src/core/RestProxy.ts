@@ -35,26 +35,26 @@ export default class RestProxy {
   private settings: IProxySettings;
   private routers: IRouters;
   private logger: Logger;
-  private isExtApp = false;
+  private isExtApp: boolean = false;
 
   constructor(settings: IProxySettings = {}, app?: express.Application) {
     const authConfigSettings: IAuthConfigSettings = settings.authConfigSettings || {};
 
     this.settings = {
-      ...settings,
+      ...settings as any,
       protocol: typeof settings.protocol !== 'undefined' ? settings.protocol : 'http',
       hostname: settings.hostname || process.env.HOSTNAME || 'localhost',
-      port: settings.port || parseInt(process.env.PORT, 10) || 8080,
+      port: settings.port || process.env.PORT || 8080,
       staticRoot: path.resolve(settings.staticRoot || path.join(__dirname, '/../../static')),
       rawBodyLimitSize: settings.rawBodyLimitSize || '10MB',
       jsonPayloadLimitSize: settings.jsonPayloadLimitSize || '2MB',
       metadata: require(path.join(__dirname, '/../../package.json')),
       strictRelativeUrls: typeof settings.strictRelativeUrls !== 'undefined' ? settings.strictRelativeUrls : false,
-      // agent: settings.agent || new https.Agent({
-      //   rejectUnauthorized: false,
-      //   keepAlive: true,
-      //   keepAliveMsecs: 10000
-      // }),
+      agent: settings.agent || new https.Agent({
+        rejectUnauthorized: false,
+        keepAlive: true,
+        keepAliveMsecs: 10000
+      }),
       authConfigSettings: {
         ...authConfigSettings,
         configPath: path.resolve(authConfigSettings.configPath || settings.configPath || './config/private.json'),
@@ -107,21 +107,19 @@ export default class RestProxy {
       const context = {
         ...ctx,
         proxyHostUrl: `${this.settings.protocol}://${this.settings.hostname}:${this.settings.port}`
-      } as unknown as IProxyContext;
+      } as IProxyContext;
 
-      // tslint:disable-next-line: deprecation
       const bodyParserRaw = bodyParser.raw({
         type: () => true, // '*/*', // To catch request without Content-Type header
         limit: this.settings.rawBodyLimitSize,
         verify: (req, _res, buf, encoding) => {
           if (buf && buf.length) {
-            (req as unknown as { rawBody: string }).rawBody = buf.toString(encoding as BufferEncoding || 'utf8');
-            (req as unknown as { buffer: Buffer }).buffer = buf;
+            (req as any).rawBody = buf.toString(encoding || 'utf8');
+            (req as any).buffer = buf;
           }
         }
       });
 
-      // tslint:disable-next-line: deprecation
       const bodyParserUrlencoded = bodyParser.urlencoded({ extended: true });
 
       // REST - Files and attachments
@@ -154,7 +152,6 @@ export default class RestProxy {
       // REST - POST requests (JSON)
       this.routers.apiRestRouter.post(
         '/*',
-        // tslint:disable-next-line: deprecation
         bodyParser.json({
           limit: this.settings.jsonPayloadLimitSize
         }),
@@ -166,7 +163,6 @@ export default class RestProxy {
         // REST - PUT requests (JSON)
         this.routers.apiRestRouter.put(
           '/*',
-          // tslint:disable-next-line: deprecation
           bodyParser.json({
             limit: this.settings.jsonPayloadLimitSize
           }),
@@ -176,7 +172,6 @@ export default class RestProxy {
         // REST - PATCH requests (JSON)
         this.routers.apiRestRouter.patch(
           '/*',
-          // tslint:disable-next-line: deprecation
           bodyParser.json({
             limit: this.settings.jsonPayloadLimitSize
           }),
@@ -228,11 +223,11 @@ export default class RestProxy {
       // Deligate serving to external app
       if (this.isExtApp) { return; }
 
-      const upCallback = (s: https.Server | http.Server, cx: IProxyContext, settings: IProxySettings, cb?: IProxyCallback) => {
-        this.logger.info(`SharePoint REST Proxy has been started on ${cx.proxyHostUrl}`);
+      const upCallback = (server: https.Server | http.Server, context: IProxyContext, settings: IProxySettings, callback?: IProxyCallback) => {
+        this.logger.info(`SharePoint REST Proxy has been started on ${context.proxyHostUrl}`);
         // After proxy is started callback
-        if (cb && typeof cb === 'function') {
-          cb(s, cx, settings);
+        if (callback && typeof callback === 'function') {
+          callback(server, context, settings);
         }
       };
 
@@ -252,7 +247,6 @@ export default class RestProxy {
         };
         server = https.createServer(options, this.app);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         server = require('http').Server(this.app);
       }
 

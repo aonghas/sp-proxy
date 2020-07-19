@@ -19,8 +19,7 @@ Original concept of the proxy was created to show how it could be easy to implem
 ## Supported SharePoint versions
 
 - SharePoint Online
-- SharePoint On-Prem (2019, 2016, 2013)
-- SharePoint On-Prem 2010 (limited support)
+- SharePoint On-Prem (2019/2016/2013/2010)
 
 ## Development paradigms
 
@@ -33,7 +32,6 @@ Original concept of the proxy was created to show how it could be easy to implem
 - REST API
 - CSOM requests
 - SOAP web services
-- Custom services
 - Static resources
 
 ## Proxy modes
@@ -50,7 +48,7 @@ Socket proxying allows to forward API from behind NAT (experimental).
 1\. Install NPM module in the project:
 
 ```bash
-npm install sp-rest-proxy
+npm install sp-rest-proxy --save-dev
 ```
 
 2\. Create server.js with the following code:

@@ -1,8 +1,7 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 import { BasicRouter } from '../BasicRouter';
 import { IProxyContext, IProxySettings } from '../interfaces';
-import { getHeaders } from '../../utils/headers';
 
 export class CsomRouter extends BasicRouter {
 
@@ -10,17 +9,30 @@ export class CsomRouter extends BasicRouter {
     super(context, settings);
   }
 
-  public router = (req: Request, res: Response): void => {
-    const endpointUrl = this.url.apiEndpoint(req);
+  public router = (req: Request, res: Response, _next?: NextFunction) => {
+    this.spr = this.getHttpClient();
+    const endpointUrl = this.util.buildEndpointUrl(req);
     this.logger.info('\nPOST (CSOM): ' + endpointUrl);
+    const agent = this.util.isUrlHttps(endpointUrl) ? this.settings.agent : undefined;
     let body = '';
     req.on('data', (chunk) => body += chunk);
-    req.on('end', async () => {
-      const headers = getHeaders(req.headers);
-      return this.sp.fetch(endpointUrl, { method: 'POST', headers, body })
-        .then(this.handlers.isOK)
-        .then(this.handlers.response(res))
-        .catch(this.handlers.error(res));
+    req.on('end', () => {
+      Promise.all([
+        this.spr.requestDigest((endpointUrl).split('/_vti_bin')[0]),
+        this.util.getAuthOptions()
+      ])
+        .then(([ digest, opt ]) => {
+          const headers = {
+            ...opt.headers,
+            'Accept': '*/*',
+            'Content-Type': 'text/xml',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-RequestDigest': digest
+          };
+          return this.spr.post(endpointUrl, { headers, body, agent, json: false });
+        })
+        .then((r) => this.transmitResponse(res, r))
+        .catch((err) => this.transmitError(res, err));
     });
   }
 

@@ -1,25 +1,38 @@
+import * as spauth from 'node-sp-auth';
+import * as spRequest from 'sp-request';
 import { Request } from 'express';
 import { parse as urlParse } from 'url';
 
 import { IProxyContext, IProxySettings } from '../core/interfaces';
 
-export class UrlUtils {
+export class ProxyUtils {
+
+  private spr: spRequest.ISPRequest;
 
   constructor(private ctx: IProxyContext, private settings: IProxySettings) { /**/ }
 
-  public isOnPrem = (url: string): boolean => {
+  public getAuthOptions(): Promise<spauth.IAuthResponse> {
+    return spauth.getAuth(this.ctx.siteUrl, this.ctx.authOptions) as any;
+  }
+
+  public getCachedRequest(spr: spRequest.ISPRequest): spRequest.ISPRequest {
+    this.spr = spr || spRequest.create(this.ctx.authOptions);
+    return this.spr;
+  }
+
+  public isOnPrem(url: string): boolean {
     return url.indexOf('.sharepoint.com') === -1 && url.indexOf('.sharepoint.cn') === -1;
   }
 
-  public isHttps = (url: string): boolean => {
+  public isUrlHttps(url: string): boolean {
     return url.split('://')[0].toLowerCase() === 'https';
   }
 
-  public isAbsolute = (url: string): boolean => {
+  public isUrlAbsolute(url: string): boolean {
     return url.indexOf('http:') === 0 || url.indexOf('https:') === 0;
   }
 
-  public apiEndpoint = (req: Request | string): string => {
+  public buildEndpointUrl(req: Request | string): string {
     const reqUrl = typeof req === 'string' ? req : req.originalUrl;
     let strictRelativeUrls = this.settings.strictRelativeUrls;
     if (typeof req === 'object' && req.header('X-ProxyStrict')) {
@@ -43,7 +56,7 @@ export class UrlUtils {
     return `${siteUrlParsed.protocol}//${siteUrlParsed.host}${reqPathName}`;
   }
 
-  public proxyEndpoint = (reqUrl: string): string => {
+  public buildProxyEndpointUrl(reqUrl: string): string {
     const spHostUrl = this.ctx.siteUrl.split('/').splice(0, 3).join('/');
     let proxyUrl = reqUrl;
     if (proxyUrl.toLowerCase().indexOf(spHostUrl.toLowerCase()) === 0) {

@@ -1,3 +1,4 @@
+
 export const generateGuid = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     // tslint:disable-next-line:no-bitwise
@@ -8,7 +9,7 @@ export const generateGuid = (): string => {
   });
 };
 
-export const checkNestedProperties = (object: unknown, ...args: string[]): boolean => {
+export const checkNestedProperties = (object: any, ...args: string[]): boolean => {
   args.forEach((arg) => {
     if (!object || !object.hasOwnProperty(arg)) {
       return false;
@@ -18,9 +19,9 @@ export const checkNestedProperties = (object: unknown, ...args: string[]): boole
   return true;
 };
 
-export const getCaseInsensitiveProp = (object: { [key: string]: unknown }, propertyName: string): unknown => {
+export const getCaseInsensitiveProp = (object: Object, propertyName: string): any => {
   propertyName = propertyName.toLowerCase();
-  return Object.keys(object).reduce((res: unknown, prop: string) => {
+  return Object.keys(object).reduce((res: any, prop: string) => {
     if (prop.toLowerCase() === propertyName) {
       res = object[prop];
     }

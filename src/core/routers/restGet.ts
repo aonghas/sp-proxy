@@ -1,9 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 import { BasicRouter } from '../BasicRouter';
-import { Headers, Response as FetchResponse } from 'node-fetch';
-import { getHeaders } from '../../utils/headers';
-
 import { IProxyContext, IProxySettings } from '../interfaces';
 
 export class RestGetRouter extends BasicRouter {
@@ -12,53 +9,55 @@ export class RestGetRouter extends BasicRouter {
     super(context, settings);
   }
 
-  public router = (req: Request, res: Response): void => {
-    const endpointUrl = this.url.apiEndpoint(req);
+  public router = (req: Request, res: Response, _next?: NextFunction) => {
+    this.spr = this.getHttpClient();
+    const endpointUrl = this.util.buildEndpointUrl(req);
     this.logger.info('\nGET: ' + endpointUrl);
-    // const headers = new Headers();
-    const headers = getHeaders(req.headers);
+    const agent = this.util.isUrlHttps(endpointUrl) ? this.settings.agent : undefined;
     const isDoc = endpointUrl.split('?')[0].toLowerCase().endsWith('/$value');
+    const headers: any = {};
+    const additionalOptions: any = {};
     if (isDoc) {
-      headers.set('binaryStringResponseBody', 'true');
+      additionalOptions.encoding = null;
     }
-    this.sp.fetch(endpointUrl, { method: 'GET', headers })
-      .then(this.handlers.isOK)
-      .then(async (r) => {
-        const ct = new Headers(r.headers).get('content-type');
-        if (ct.toLowerCase().indexOf('application/json') !== 0) {
-          return r;
+    const ignoreHeaders = [
+      'host', 'referer', 'origin',
+      'connection', 'cache-control', 'user-agent',
+      'accept-encoding', 'x-requested-with', 'accept-language'
+    ];
+    Object.keys(req.headers).forEach((prop) => {
+      if (ignoreHeaders.indexOf(prop.toLowerCase()) === -1) {
+        if (prop.toLowerCase() === 'accept' && req.headers[prop] !== '*/*') {
+          headers.Accept = req.headers[prop];
+        } else if (prop.toLowerCase() === 'content-type') {
+          headers['Content-Type'] = req.headers[prop];
+        } else {
+          headers[prop] = req.headers[prop];
         }
-        try {
-          const body = await r.json();
-
-          // Paged collections patch
-          if (typeof body['odata.nextLink'] === 'string') {
-            body['odata.nextLink'] = this.url.proxyEndpoint(body['odata.nextLink']);
-          }
-          if (typeof body.d?.__next === 'string') {
-            body.d.__next = this.url.proxyEndpoint(body.d.__next);
-          }
-          // OData patch to PnPjs chained requests work
-          if (typeof body['odata.metadata'] === 'string') {
-            body['odata.metadata'] = this.url.proxyEndpoint(body['odata.metadata']);
-          }
-          // OData patch to PnPjs URI resolver, Verbose mode
-          if (body?.d?.__metadata?.uri) {
-            body.d.__metadata.uri = this.url.proxyEndpoint(body.d.__metadata.uri);
-          }
-
-          return new FetchResponse(JSON.stringify(body), r);
-
-        } catch (ex) { this.logger.error(ex); }
+      }
+    });
+    // this.logger.debug('\nHeaders:\n', JSON.stringify(req.headers, null, 2));
+    this.spr.get(endpointUrl, { headers, ...additionalOptions, agent })
+      .then((r) => {
+        // Paged collections patch
+        if (typeof r.body['odata.nextLink'] === 'string') {
+          r.body['odata.nextLink'] = this.util.buildProxyEndpointUrl(r.body['odata.nextLink']);
+        }
+        if (r.body.d && typeof r.body.d.__next === 'string') {
+          r.body.d.__next = this.util.buildProxyEndpointUrl(r.body.d.__next);
+        }
+        // OData patch to PnPjs chained requests work
+        if (typeof r.body['odata.metadata'] === 'string') {
+          r.body['odata.metadata'] = this.util.buildProxyEndpointUrl(r.body['odata.metadata']);
+        }
+        // OData patch to PnPjs URI resolver, Verbose mode
+        if (r.body?.d?.__metadata?.uri) {
+          r.body.d.__metadata.uri = this.util.buildProxyEndpointUrl(r.body.d.__metadata.uri);
+        }
         return r;
       })
-      .then((r) => this.handlers.response(res)(r, (resp) => {
-        if (isDoc) {
-          return resp.buffer();
-        }
-        return resp.text();
-      }))
-      .catch(this.handlers.error(res));
+      .then((r) => this.transmitResponse(res, r))
+      .catch((err) => this.transmitError(res, err));
   }
 
 }

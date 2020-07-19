@@ -5,7 +5,6 @@
 
 import RestProxy from '../src/RestProxy';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const argv = require('minimist')(process.argv.slice(2));
 const conf = argv.conf;
 
